@@ -512,13 +512,11 @@ export const ReceiptsView: React.FC = () => {
             );
           })}
         </div>
-      )}
-
-      {/* Multi-Step Create Receipt Modal Wizard */}
+      )}      {/* Multi-Step Create Receipt Modal Wizard */}
       {isWizardOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh] my-auto">
+            <div className="shrink-0 p-4 border-b border-slate-200 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <ArrowDownLeft className="w-4 h-4 text-blue-600" />
@@ -526,13 +524,13 @@ export const ReceiptsView: React.FC = () => {
                 </h3>
                 <span className="text-[11px] font-mono text-blue-600 font-bold">{wizardData.reference}</span>
               </div>
-              <button onClick={() => setIsWizardOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsWizardOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Step Wizard Header */}
-            <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs font-semibold">
+            <div className="shrink-0 px-6 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs font-semibold">
               <div className={`flex items-center gap-2 ${wizardStep === 1 ? 'text-blue-600 font-bold' : (wizardStep > 1 ? 'text-emerald-600' : 'text-slate-400')}`}>
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${wizardStep === 1 ? 'bg-blue-600 text-white' : (wizardStep > 1 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600')}`}>1</span>
                 <span>1. General Info</span>
@@ -549,7 +547,7 @@ export const ReceiptsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <div className="flex-1 p-6 overflow-y-auto min-h-0">
               {wizardStep === 1 && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -713,7 +711,7 @@ export const ReceiptsView: React.FC = () => {
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+            <div className="shrink-0 p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
               {wizardStep > 1 ? (
                 <button type="button" onClick={() => setWizardStep(wizardStep - 1)} className="btn btn-secondary text-xs">
                   <ArrowLeft className="w-3.5 h-3.5" />
