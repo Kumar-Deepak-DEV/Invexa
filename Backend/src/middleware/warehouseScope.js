@@ -96,7 +96,8 @@ function requireWarehouseAccess(getWarehouseIds) {
       }
 
       // Manager role bypasses warehouse scoping (PRD §5.9, §6)
-      if (req.user.role && req.user.role.toLowerCase() === 'manager') {
+      const roleLower = (req.user.role || '').toLowerCase();
+      if (roleLower === 'manager' || roleLower.includes('manager') || roleLower.includes('admin')) {
         return next();
       }
 

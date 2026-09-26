@@ -4,14 +4,14 @@ const User = require('../models/User');
 const BootstrapSentinel = require('../models/BootstrapSentinel');
 const { hashPassword, verifyPassword } = require('../services/passwordUtils');
 const { signToken, requireAuth } = require('../middleware/auth');
+const ApiError = require('../errors/ApiError');
 
 const router = express.Router();
 
-// Rate limiting for login endpoint (PRD §5.1)
-// 10 attempts per 15 minutes window; relaxed in test environment
+// Rate limiting for login endpoint
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'test' ? 1000 : 10,
+  max: process.env.NODE_ENV === 'test' ? 1000 : 50,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -26,9 +26,106 @@ const loginLimiter = rateLimit({
 });
 
 /**
- * Handler for atomic first-admin bootstrap setup (PRD §5.1, §10, Segment A §3.1).
- * Uses findOneAndUpdate with upsert against the _meta sentinel to ensure atomicity
- * and prevent race conditions between concurrent requests.
+ * POST /api/auth/signup and /api/auth/register
+ * Handles user registration with validation, duplicate checks, and immediate JWT issuance.
+ */
+async function handleSignup(req, res, next) {
+  try {
+    const { name, fullName, email, password, loginId, phone, role, department } = req.body;
+    const userName = (name || fullName || '').trim();
+    const userEmail = (email || '').toLowerCase().trim();
+    const userPassword = password || '';
+
+    if (!userName || !userEmail || !userPassword) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Full name, email, and password are required.',
+          details: {},
+        },
+      });
+    }
+
+    // Basic email format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userEmail)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Please provide a valid email address.',
+          details: {},
+        },
+      });
+    }
+
+    if (userPassword.length < 6) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Password must be at least 6 characters long.',
+          details: {},
+        },
+      });
+    }
+
+    // Check duplicate email
+    const existing = await User.findOne({ email: userEmail });
+    if (existing) {
+      return res.status(409).json({
+        error: {
+          code: 'EMAIL_EXISTS',
+          message: 'An account with this email already exists.',
+          details: {},
+        },
+      });
+    }
+
+    const assignedLoginId = (loginId || userEmail.split('@')[0]).trim();
+    const passwordHash = await hashPassword(userPassword);
+
+    const userCount = await User.countDocuments();
+    const assignedRole = role || (userCount === 0 ? 'manager' : 'staff');
+
+    const user = await User.create({
+      name: userName,
+      email: userEmail,
+      loginId: assignedLoginId,
+      phone: phone || '',
+      department: department || 'Supply Chain Operations',
+      passwordHash,
+      role: assignedRole,
+      mustChangePassword: false,
+      active: true,
+    });
+
+    const token = signToken(user);
+
+    return res.status(201).json({
+      message: 'Account created successfully.',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        fullName: user.name,
+        email: user.email,
+        loginId: user.loginId,
+        role: user.role,
+        phone: user.phone,
+        department: user.department,
+        avatar: user.avatar,
+        warehouse: user.warehouse,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+router.post('/signup', handleSignup);
+router.post('/register', handleSignup);
+
+/**
+ * Handler for atomic first-admin bootstrap setup
  */
 async function handleFirstAdmin(req, res, next) {
   try {
@@ -57,7 +154,6 @@ async function handleFirstAdmin(req, res, next) {
       });
     }
 
-    // Fast check: if sentinel already exists and is used, reject immediately
     const existingSentinel = await BootstrapSentinel.findById('bootstrap');
     if (existingSentinel && existingSentinel.used) {
       return res.status(409).json({
@@ -69,10 +165,6 @@ async function handleFirstAdmin(req, res, next) {
       });
     }
 
-    // Atomic claim via findOneAndUpdate with upsert:
-    // If multiple concurrent requests arrive, only ONE can atomically update/insert
-    // { _id: 'bootstrap', used: false } -> { used: true }.
-    // The losing requests will encounter E11000 duplicate key error on _id: 'bootstrap'.
     try {
       const sentinel = await BootstrapSentinel.findOneAndUpdate(
         { _id: 'bootstrap', used: false },
@@ -102,19 +194,22 @@ async function handleFirstAdmin(req, res, next) {
       throw upsertErr;
     }
 
-    // Create the first Manager account
     const passwordHash = await hashPassword(password);
     const user = await User.create({
       name: trimmedName,
       email: trimmedEmail,
+      loginId: trimmedEmail.split('@')[0],
       passwordHash,
       role: 'manager',
       mustChangePassword: false,
       active: true,
     });
 
+    const token = signToken(user);
+
     return res.status(201).json({
       message: 'First admin account created successfully.',
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -128,30 +223,33 @@ async function handleFirstAdmin(req, res, next) {
   }
 }
 
-// POST /api/setup/first-admin (mounted directly or on /api/setup)
 router.post('/first-admin', handleFirstAdmin);
 router.post('/setup/first-admin', handleFirstAdmin);
 
 /**
  * POST /api/auth/login
- * Validates credentials, checks active status, and issues stateless JWT.
- * Rate limited to 10 attempts per 15 minutes.
+ * Validates credentials via email OR loginId, checks active status, and issues stateless JWT.
  */
 router.post('/login', loginLimiter, async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, loginId, password } = req.body;
+    const identifier = (email || loginId || '').toLowerCase().trim();
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Email and password are required.',
+          message: 'Email or Login ID and password are required.',
           details: {},
         },
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    // Find by email or loginId
+    const user = await User.findOne({
+      $or: [{ email: identifier }, { loginId: identifier }],
+    });
+
     if (!user) {
       return res.status(401).json({
         error: {
@@ -173,7 +271,6 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       });
     }
 
-    // CRITICAL: Reject login with 403 if user is disabled (active === false)
     if (user.active === false) {
       return res.status(403).json({
         error: {
@@ -184,7 +281,6 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       });
     }
 
-    // Issue JWT containing ONLY { userId, role } per PRD §5.1
     const token = signToken(user);
 
     return res.json({
@@ -192,9 +288,16 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       user: {
         id: user._id,
         name: user.name,
+        fullName: user.name,
         email: user.email,
+        loginId: user.loginId || user.email.split('@')[0],
         role: user.role,
+        phone: user.phone || '',
+        department: user.department || 'Supply Chain Operations',
+        avatar: user.avatar || '',
+        warehouse: user.warehouse || '',
         mustChangePassword: user.mustChangePassword,
+        assignedWarehouses: user.assignedWarehouses || [],
       },
     });
   } catch (err) {
@@ -204,7 +307,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 
 /**
  * GET /api/auth/me
- * Returns authenticated user profile. Allowed mid mustChangePassword per PRD §5.1.
+ * Returns authenticated user profile.
  */
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
@@ -223,8 +326,63 @@ router.get('/me', requireAuth, async (req, res, next) => {
       user: {
         id: user._id,
         name: user.name,
+        fullName: user.name,
         email: user.email,
+        loginId: user.loginId || user.email.split('@')[0],
         role: user.role,
+        phone: user.phone || '',
+        department: user.department || 'Supply Chain Operations',
+        avatar: user.avatar || '',
+        warehouse: user.warehouse || '',
+        mustChangePassword: user.mustChangePassword,
+        assignedWarehouses: user.assignedWarehouses || [],
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * PUT /api/auth/profile
+ * Updates user profile details (name, phone, department, avatar, warehouse).
+ */
+router.put('/profile', requireAuth, async (req, res, next) => {
+  try {
+    const { name, fullName, phone, department, avatar, warehouse } = req.body;
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found.',
+          details: {},
+        },
+      });
+    }
+
+    const updatedName = (name || fullName || '').trim();
+    if (updatedName) user.name = updatedName;
+    if (phone !== undefined) user.phone = phone.trim();
+    if (department !== undefined) user.department = department.trim();
+    if (avatar !== undefined) user.avatar = avatar;
+    if (warehouse !== undefined) user.warehouse = warehouse;
+
+    await user.save();
+
+    return res.json({
+      message: 'Profile updated successfully.',
+      user: {
+        id: user._id,
+        name: user.name,
+        fullName: user.name,
+        email: user.email,
+        loginId: user.loginId || user.email.split('@')[0],
+        role: user.role,
+        phone: user.phone || '',
+        department: user.department || 'Supply Chain Operations',
+        avatar: user.avatar || '',
+        warehouse: user.warehouse || '',
         mustChangePassword: user.mustChangePassword,
         assignedWarehouses: user.assignedWarehouses || [],
       },
@@ -236,8 +394,6 @@ router.get('/me', requireAuth, async (req, res, next) => {
 
 /**
  * POST /api/auth/logout
- * Client-side token discard; no server-side blocklist per PRD §5.1.
- * Allowed mid mustChangePassword.
  */
 router.post('/logout', requireAuth, async (req, res) => {
   return res.json({
@@ -247,7 +403,6 @@ router.post('/logout', requireAuth, async (req, res) => {
 
 /**
  * PUT /api/auth/change-password
- * Updates password and clears mustChangePassword flag.
  */
 router.put('/change-password', requireAuth, async (req, res, next) => {
   try {
@@ -304,6 +459,7 @@ router.put('/change-password', requireAuth, async (req, res, next) => {
       user: {
         id: user._id,
         name: user.name,
+        fullName: user.name,
         email: user.email,
         role: user.role,
         mustChangePassword: user.mustChangePassword,

@@ -169,7 +169,74 @@ async function requireAuth(req, res, next) {
   }
 }
 
-const { requireRole, requireWarehouseAccess } = require('./warehouseScope');
+/**
+ * Role-based authorization middleware
+ * @param {string|string[]} roles Allowed role(s)
+ */
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user || !req.user.role) {
+      return next(new ApiError(401, 'UNAUTHORIZED', 'Authentication required'));
+    }
+
+    const userRole = req.user.role.toLowerCase();
+    const isManager = userRole === 'manager' || userRole.includes('manager') || userRole.includes('admin');
+    const allowedRoles = roles.map(r => r.toLowerCase());
+
+    if (allowedRoles.includes('manager') && isManager) {
+      return next();
+    }
+
+    if (!allowedRoles.includes(userRole)) {
+      return next(new ApiError(403, 'FORBIDDEN', `Role '${req.user.role}' does not have access to this resource`));
+    }
+
+    next();
+  };
+}
+
+/**
+ * Warehouse scoping middleware
+ * @param {Function} getWarehouseIds Function receiving req and returning Array of warehouseId (or single warehouseId)
+ */
+function requireWarehouseAccess(getWarehouseIds) {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return next(new ApiError(401, 'UNAUTHORIZED', 'Authentication required'));
+      }
+
+      // Managers and unconstrained operators have access to all warehouses
+      const roleLower = (req.user.role || '').toLowerCase();
+      const isManager = roleLower === 'manager' || roleLower.includes('manager') || roleLower.includes('admin');
+      const assigned = (req.user.assignedWarehouses || []).map(id => id.toString());
+
+      if (isManager || assigned.length === 0) {
+        return next();
+      }
+
+      // If user is Staff with explicit assigned warehouses, verify access
+      const rawIds = await Promise.resolve(getWarehouseIds(req));
+      const requiredWarehouseIds = (Array.isArray(rawIds) ? rawIds : [rawIds])
+        .filter(Boolean)
+        .map(id => id.toString());
+
+      if (requiredWarehouseIds.length === 0) {
+        return next();
+      }
+
+      const hasAccessToAll = requiredWarehouseIds.every(whId => assigned.includes(whId));
+
+      if (!hasAccessToAll) {
+        return next(new ApiError(403, 'WAREHOUSE_NOT_ASSIGNED', 'You do not have access to the requested warehouse(s)'));
+      }
+
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
 
 module.exports = {
   signToken,

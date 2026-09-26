@@ -3,18 +3,7 @@ const mongoose = require('mongoose');
 const Warehouse = require('../models/Warehouse');
 const Location = require('../models/Location');
 const { requireAuth, requireRole } = require('../middleware/auth');
-
-let stockCheckService;
-try {
-  stockCheckService = require('../services/stockCheck');
-} catch (e) {
-  // Fallback stub if stockCheck service is missing or during standalone builds per Segment A §7
-  stockCheckService = {
-    // TODO: swap for real Segment B import
-    hasNonZeroStock: async () => false,
-    getStockByProduct: async () => [],
-  };
-}
+const { hasNonZeroStock } = require('../services/stockCheck');
 
 const router = express.Router();
 
@@ -25,16 +14,31 @@ const router = express.Router();
  */
 router.get('/', requireAuth, async (req, res, next) => {
   try {
-    const { includeInactive } = req.query;
+    const { includeInactive, active } = req.query;
     const filter = {};
 
-    if (includeInactive !== 'true') {
+    if (active === 'false') {
+      filter.active = false;
+    } else if (includeInactive !== 'true' && active !== 'all') {
       filter.active = true;
     }
 
-    const warehouses = await Warehouse.find(filter).sort({ name: 1 });
+    const warehouses = await Warehouse.find(filter).sort({ name: 1, createdAt: 1 }).lean();
+    const locations = await Location.find({ active: true }).lean();
+
+    const enriched = warehouses.map((w) => {
+      const whLocations = locations.filter((l) => l.warehouseId.toString() === w._id.toString());
+      return {
+        ...w,
+        id: w._id.toString(),
+        locations: whLocations.map((l) => ({ ...l, id: l._id.toString() })),
+        locationCount: whLocations.length,
+      };
+    });
+
     return res.json({
-      data: warehouses,
+      data: enriched,
+      warehouses: enriched,
     });
   } catch (err) {
     next(err);
@@ -47,7 +51,7 @@ router.get('/', requireAuth, async (req, res, next) => {
  */
 router.post('/', requireAuth, requireRole('manager'), async (req, res, next) => {
   try {
-    const { name } = req.body;
+    const { name, code, shortName, city, address, type, capacity, manager, status } = req.body;
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({
@@ -61,10 +65,23 @@ router.post('/', requireAuth, requireRole('manager'), async (req, res, next) => 
 
     const warehouse = await Warehouse.create({
       name: name.trim(),
+      code: code || '',
+      shortName: shortName || name.trim(),
+      city: city || '',
+      address: address || '',
+      type: type || 'Central Hub',
+      capacity: Number(capacity) || 10000,
+      manager: manager || '',
+      status: status || 'Active',
       active: true,
     });
 
-    return res.status(201).json(warehouse);
+    return res.status(201).json({
+      ...warehouse.toObject(),
+      id: warehouse._id.toString(),
+      locations: [],
+      locationCount: 0,
+    });
   } catch (err) {
     next(err);
   }
@@ -88,11 +105,11 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     }
 
     const filter = { _id: id };
-    if (req.query.includeInactive !== 'true') {
+    if (req.query.includeInactive !== 'true' && req.query.active !== 'false') {
       filter.active = true;
     }
 
-    const warehouse = await Warehouse.findOne(filter);
+    const warehouse = await Warehouse.findOne(filter).lean();
     if (!warehouse) {
       return res.status(404).json({
         error: {
@@ -103,14 +120,21 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       });
     }
 
-    return res.json(warehouse);
+    const locations = await Location.find({ warehouseId: warehouse._id, active: true }).lean();
+
+    return res.json({
+      ...warehouse,
+      id: warehouse._id.toString(),
+      locations: locations.map((l) => ({ ...l, id: l._id.toString() })),
+      locationCount: locations.length,
+    });
   } catch (err) {
     next(err);
   }
 });
 
 /**
- * PATCH /api/warehouses/:id
+ * PATCH /api/warehouses/:id and PUT /api/warehouses/:id
  * Manager only. Updates warehouse details.
  */
 const updateWarehouseHandler = async (req, res, next) => {
@@ -137,7 +161,8 @@ const updateWarehouseHandler = async (req, res, next) => {
       });
     }
 
-    const { name, active } = req.body;
+    const { name, code, shortName, city, address, type, capacity, manager, status, active } = req.body;
+
     if (name !== undefined) {
       if (typeof name !== 'string' || !name.trim()) {
         return res.status(400).json({
@@ -151,12 +176,21 @@ const updateWarehouseHandler = async (req, res, next) => {
       warehouse.name = name.trim();
     }
 
-    if (active !== undefined) {
-      warehouse.active = Boolean(active);
-    }
+    if (code !== undefined) warehouse.code = code;
+    if (shortName !== undefined) warehouse.shortName = shortName;
+    if (city !== undefined) warehouse.city = city;
+    if (address !== undefined) warehouse.address = address;
+    if (type !== undefined) warehouse.type = type;
+    if (capacity !== undefined) warehouse.capacity = Number(capacity);
+    if (manager !== undefined) warehouse.manager = manager;
+    if (status !== undefined) warehouse.status = status;
+    if (active !== undefined) warehouse.active = Boolean(active);
 
     await warehouse.save();
-    return res.json(warehouse);
+    return res.json({
+      ...warehouse.toObject(),
+      id: warehouse._id.toString(),
+    });
   } catch (err) {
     next(err);
   }
@@ -195,7 +229,7 @@ router.delete('/:id', requireAuth, requireRole('manager'), async (req, res, next
     }
 
     // Check if non-zero stock exists in this warehouse
-    const hasStock = await stockCheckService.hasNonZeroStock(id);
+    const hasStock = await hasNonZeroStock(id);
     if (hasStock) {
       return res.status(409).json({
         error: {
@@ -211,6 +245,7 @@ router.delete('/:id', requireAuth, requireRole('manager'), async (req, res, next
 
     return res.json({
       message: 'Warehouse deactivated successfully.',
+      id: warehouse._id.toString(),
       warehouse,
     });
   } catch (err) {
@@ -252,7 +287,7 @@ router.get('/:id/locations', requireAuth, async (req, res, next) => {
     }
 
     const filter = { warehouseId: id };
-    if (req.query.includeInactive !== 'true') {
+    if (req.query.includeInactive !== 'true' && req.query.active !== 'false') {
       filter.active = true;
     }
 
@@ -327,7 +362,7 @@ router.post('/:id/locations', requireAuth, requireRole('manager'), async (req, r
 });
 
 /**
- * PATCH /api/warehouses/:id/locations/:locId
+ * PATCH /api/warehouses/:id/locations/:locId and PUT /api/warehouses/:id/locations/:locId
  * Manager only. Updates location name or active status.
  */
 const updateLocationHandler = async (req, res, next) => {
@@ -412,7 +447,7 @@ router.delete('/:id/locations/:locId', requireAuth, requireRole('manager'), asyn
     }
 
     // Check if non-zero stock exists in this specific location
-    const hasStock = await stockCheckService.hasNonZeroStock(id, locId);
+    const hasStock = await hasNonZeroStock(id, locId);
     if (hasStock) {
       return res.status(409).json({
         error: {

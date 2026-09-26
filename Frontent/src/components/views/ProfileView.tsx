@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStockSense } from '../../context/StockSenseContext';
 import {
   User,
@@ -68,6 +68,7 @@ export const ProfileView: React.FC = () => {
   const {
     currentUser,
     updateUserProfile,
+    changePassword,
     warehouses,
     products,
     receipts,
@@ -79,20 +80,31 @@ export const ProfileView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'avatar' | 'security' | 'preferences' | 'data'>('profile');
 
   // Form State
-  const [fullName, setFullName] = useState(currentUser.fullName);
-  const [email, setEmail] = useState(currentUser.email);
-  const [phone, setPhone] = useState(currentUser.phone || '+91 98765 43210');
-  const [department, setDepartment] = useState(currentUser.department || 'Warehouse Operations & Logistics');
-  const [role, setRole] = useState(currentUser.role || 'Inventory Manager');
-  const initialWH = warehouses.find(w => w.name === currentUser.warehouse || currentUser.warehouse?.includes(w.name) || currentUser.warehouse?.includes(w.code))?.name || warehouses[0]?.name || '';
+  const [fullName, setFullName] = useState(currentUser?.fullName || currentUser?.name || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '+91 98765 43210');
+  const [department, setDepartment] = useState(currentUser?.department || 'Warehouse Operations & Logistics');
+  const [role, setRole] = useState(currentUser?.role || 'Inventory Manager');
+  const initialWH = warehouses.find(w => w.name === currentUser?.warehouse || currentUser?.warehouse?.includes(w.name) || currentUser?.warehouse?.includes(w.code))?.name || warehouses[0]?.name || '';
   const [primaryWarehouse, setPrimaryWarehouse] = useState(initialWH);
   const [bio, setBio] = useState('Senior supply chain specialist managing multi-warehouse replenishment, inventory balancing, and dispatch dock fulfillment.');
   const [timezone, setTimezone] = useState('Asia/Kolkata (IST +5:30)');
 
   // Avatar Studio State
-  const [avatarUrl, setAvatarUrl] = useState(currentUser.avatar || '');
+  const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatar || '');
   const [customUrlInput, setCustomUrlInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (currentUser) {
+      setFullName(currentUser.fullName || currentUser.name || '');
+      setEmail(currentUser.email || '');
+      setPhone(currentUser.phone || '+91 98765 43210');
+      setDepartment(currentUser.department || 'Warehouse Operations & Logistics');
+      setRole(currentUser.role || 'Inventory Manager');
+      if (currentUser.avatar) setAvatarUrl(currentUser.avatar);
+    }
+  }, [currentUser]);
 
   // Password State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -170,7 +182,7 @@ export const ProfileView: React.FC = () => {
   };
 
   // Handle Password Change
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       showToast('New passwords do not match', 'danger');
@@ -180,10 +192,14 @@ export const ProfileView: React.FC = () => {
       showToast('Password must be at least 8 characters long', 'warning');
       return;
     }
-    showToast('Password credentials changed successfully!', 'success');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (e) {
+      // Toast already handled by context
+    }
   };
 
   // Handle Export Backup
@@ -241,15 +257,15 @@ export const ProfileView: React.FC = () => {
           {/* Avatar with Interactive Edit Badge */}
           <div className="relative group">
             <div className="w-28 h-28 rounded-2xl bg-white/10 backdrop-blur-md border-2 border-white/20 overflow-hidden flex items-center justify-center text-3xl font-extrabold text-white shadow-xl">
-              {currentUser.avatar ? (
+              {currentUser?.avatar ? (
                 <img
                   src={currentUser.avatar}
-                  alt={currentUser.fullName}
+                  alt={currentUser?.fullName || 'User'}
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <span className="font-display tracking-wider">
-                  {currentUser.fullName
+                  {(currentUser?.fullName || currentUser?.name || currentUser?.loginId || 'User')
                     .split(' ')
                     .map((n) => n[0])
                     .join('')}

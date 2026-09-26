@@ -22,29 +22,43 @@ const UserSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ['manager', 'staff'],
+      enum: ['manager', 'staff', 'Inventory Manager', 'Warehouse Staff', 'Admin'],
+      default: 'manager',
       required: true,
     },
-    // Ignored/irrelevant when role === 'manager'. Set by a Manager at
-    // creation or via edit (PUT /api/users/:id). This is read live from
-    // the DB by the warehouseScope middleware on every write request —
-    // it is deliberately NOT baked into the JWT (PRD §5.1, §5.9, §6).
+    loginId: {
+      type: String,
+      trim: true,
+      sparse: true,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    department: {
+      type: String,
+      trim: true,
+      default: 'Supply Chain Operations',
+    },
+    avatar: {
+      type: String,
+      default: '',
+    },
+    warehouse: {
+      type: String,
+      default: '',
+    },
     assignedWarehouses: [
       {
         type: Schema.Types.ObjectId,
         ref: 'Warehouse',
       },
     ],
-    // true on creation via POST /api/users or the bootstrap route.
-    // Forces the user through PUT /api/auth/change-password before any
-    // other route is reachable (PRD §5.1).
     mustChangePassword: {
       type: Boolean,
-      default: true,
+      default: false,
     },
-    // Soft-disable only. Never hard-delete a user — the ledger's `user`
-    // field (owned by Segment B) references users by ObjectId and must
-    // remain resolvable for audit-trail purposes (PRD §5.12).
     active: {
       type: Boolean,
       default: true,

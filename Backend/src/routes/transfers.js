@@ -90,16 +90,13 @@ router.post(
   requireWarehouseAccess(getTransferWarehouseIds),
   async (req, res, next) => {
     try {
-      const {
-        sourceWarehouseId,
-        sourceLocationId,
-        destWarehouseId,
-        destLocationId,
-        lines,
-        status
-      } = req.body;
+      const srcWh = req.body.sourceWarehouseId || req.body.fromWarehouseId;
+      const srcLoc = req.body.sourceLocationId || req.body.fromLocationId;
+      const dstWh = req.body.destWarehouseId || req.body.toWarehouseId;
+      const dstLoc = req.body.destLocationId || req.body.toLocationId;
+      const status = req.body.status;
 
-      if (!sourceWarehouseId || !sourceLocationId || !destWarehouseId || !destLocationId) {
+      if (!srcWh || !srcLoc || !dstWh || !dstLoc) {
         throw new ApiError(
           400,
           'VALIDATION_ERROR',
@@ -107,20 +104,25 @@ router.post(
         );
       }
 
-      if (sourceLocationId.toString() === destLocationId.toString()) {
+      if (srcLoc.toString() === dstLoc.toString()) {
         throw new ApiError(400, 'SAME_SOURCE_DEST', 'Source and destination locations cannot be the same');
       }
 
-      const formattedLines = validateLineItems(lines);
+      let rawLines = req.body.lines || req.body.items || [];
+      if (rawLines.length === 0 && req.body.productId && req.body.quantity) {
+        rawLines = [{ productId: req.body.productId, quantity: req.body.quantity }];
+      }
+
+      const formattedLines = validateLineItems(rawLines);
 
       const initialStatus = ['draft', 'waiting', 'ready'].includes(status) ? status : 'draft';
       const transferGroupId = new mongoose.Types.ObjectId();
 
       const transfer = await Transfer.create({
-        sourceWarehouseId: new mongoose.Types.ObjectId(sourceWarehouseId),
-        sourceLocationId: new mongoose.Types.ObjectId(sourceLocationId),
-        destWarehouseId: new mongoose.Types.ObjectId(destWarehouseId),
-        destLocationId: new mongoose.Types.ObjectId(destLocationId),
+        sourceWarehouseId: new mongoose.Types.ObjectId(srcWh),
+        sourceLocationId: new mongoose.Types.ObjectId(srcLoc),
+        destWarehouseId: new mongoose.Types.ObjectId(dstWh),
+        destLocationId: new mongoose.Types.ObjectId(dstLoc),
         status: initialStatus,
         lines: formattedLines,
         transferGroupId,

@@ -22,8 +22,10 @@ import { LandingView } from './components/views/LandingView';
 import { InboxView } from './components/views/InboxView';
 
 
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+
 const MainLayout: React.FC = () => {
-  const { activeView } = useStockSense();
+  const { activeView, setActiveView } = useStockSense();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -58,6 +60,8 @@ const MainLayout: React.FC = () => {
         return <ProfileView />;
       case 'auth':
       case 'login':
+      case 'register':
+      case 'signup':
         return <AuthView />;
       default:
         return <DashboardView />;
@@ -67,20 +71,24 @@ const MainLayout: React.FC = () => {
   // Standalone Full-Page Views
   if (activeView === 'landing') {
     return (
-      <div className="min-h-screen w-full bg-white overflow-x-hidden flex flex-col font-sans">
-        <LandingView />
-        <ToastContainer />
-      </div>
+      <ErrorBoundary fallbackTitle="Landing Page Recovered" onReset={() => setActiveView('dashboard')}>
+        <div className="min-h-screen w-full bg-white overflow-x-hidden flex flex-col font-sans">
+          <LandingView />
+          <ToastContainer />
+        </div>
+      </ErrorBoundary>
     );
   }
 
   // If on Auth view standalone
-  if (activeView === 'auth' || activeView === 'login') {
+  if (activeView === 'auth' || activeView === 'login' || activeView === 'register' || activeView === 'signup') {
     return (
-      <div className="h-screen w-full bg-white overflow-hidden flex flex-col">
-        <AuthView />
-        <ToastContainer />
-      </div>
+      <ErrorBoundary fallbackTitle="Authentication Screen Recovered" onReset={() => setActiveView('landing')}>
+        <div className="h-screen w-full bg-white overflow-hidden flex flex-col">
+          <AuthView />
+          <ToastContainer />
+        </div>
+      </ErrorBoundary>
     );
   }
 
@@ -101,7 +109,9 @@ const MainLayout: React.FC = () => {
 
         {/* Dynamic Module Workspace */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto pb-16">
-          {renderActiveView()}
+          <ErrorBoundary onReset={() => setActiveView('dashboard')}>
+            {renderActiveView()}
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -119,9 +129,11 @@ const MainLayout: React.FC = () => {
 
 export function App() {
   return (
-    <StockSenseProvider>
-      <MainLayout />
-    </StockSenseProvider>
+    <ErrorBoundary>
+      <StockSenseProvider>
+        <MainLayout />
+      </StockSenseProvider>
+    </ErrorBoundary>
   );
 }
 

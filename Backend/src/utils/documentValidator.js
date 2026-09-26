@@ -31,7 +31,8 @@ function validateLineItems(lines, { isValidateAction = false } = {}) {
     }
     seenProducts.add(prodIdStr);
 
-    const decQty = toDecimal(line.quantity);
+    const rawQty = line.quantity !== undefined ? line.quantity : (line.receivedQty !== undefined ? line.receivedQty : (line.requestedQty !== undefined ? line.requestedQty : line.expectedQty));
+    const decQty = toDecimal(rawQty);
     if (decQty.isNegative() || decQty.isZero()) {
       throw new ApiError(400, 'INVALID_QUANTITY', `Quantity for productId ${prodIdStr} must be greater than 0`);
     }

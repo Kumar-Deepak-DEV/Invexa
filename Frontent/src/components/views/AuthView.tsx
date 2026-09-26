@@ -16,9 +16,20 @@ import {
 } from 'lucide-react';
 
 export const AuthView: React.FC = () => {
-  const { login, registerUser, showToast, setActiveView } = useStockSense();
+  const { login, registerUser, showToast, setActiveView, activeView } = useStockSense();
 
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'otp' | 'reset'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'otp' | 'reset'>(() => {
+    if (activeView === 'register' || activeView === 'signup') return 'register';
+    return 'login';
+  });
+
+  useEffect(() => {
+    if (activeView === 'register' || activeView === 'signup') {
+      setMode('register');
+    } else if (activeView === 'login' || activeView === 'auth') {
+      setMode('login');
+    }
+  }, [activeView]);
 
   // Login State
   const [loginId, setLoginId] = useState('alex.rivera');
@@ -94,22 +105,28 @@ export const AuthView: React.FC = () => {
   }, [mode, otpTimer]);
 
   // Handle Login Submit
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginId.trim() || !loginPassword.trim()) {
       showToast('Please enter both Login ID and Password', 'warning');
       return;
     }
 
-    login(loginId, 'Inventory Manager');
-    showToast(`Welcome back, ${loginId}!`, 'success');
-    setActiveView('dashboard');
+    try {
+      const result = await login(loginId.trim(), loginPassword);
+      if (result?.success) {
+        setActiveView('dashboard');
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Login failed';
+      showToast(errMsg, 'danger');
+    }
   };
 
   // Handle Register Submit
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regFullName.trim() || !regEmail.trim()) {
+    if (!regFullName.trim() || !regEmail.trim() || !regPassword.trim()) {
       showToast('Please fill all required fields', 'warning');
       return;
     }
@@ -132,15 +149,24 @@ export const AuthView: React.FC = () => {
 
     const assignedLoginId = regLoginId.trim() || regEmail.split('@')[0];
 
-    registerUser({
-      fullName: regFullName,
-      loginId: assignedLoginId,
-      email: regEmail,
-    });
+    try {
+      const result = await registerUser({
+        fullName: regFullName.trim(),
+        loginId: assignedLoginId,
+        email: regEmail.trim(),
+        password: regPassword,
+        phone: regPhone.trim(),
+        role: regRole,
+      });
 
-    showToast('Account registered successfully! Please sign in.', 'success');
-    setLoginId(assignedLoginId);
-    setMode('login');
+      if (result?.success) {
+        setLoginId(assignedLoginId);
+        setActiveView('dashboard');
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Registration failed';
+      showToast(errMsg, 'danger');
+    }
   };
 
   // Handle Forgot Password Request

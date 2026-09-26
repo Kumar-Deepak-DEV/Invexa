@@ -201,26 +201,26 @@ export const StockView: React.FC = () => {
                       </span>
                     </td>
                     <td className="text-xs text-slate-700 font-medium">
-                      {p.warehouseName}
+                      {p.warehouseName || 'Main Warehouse'}
                     </td>
                     <td>
                       <span className={`font-bold text-xs font-mono ${p.stock <= 0 ? 'text-red-600' : 'text-slate-900'}`}>
-                        {p.stock} {p.unit}
+                        {p.stock} {p.unit || 'pcs'}
                       </span>
                     </td>
                     <td>
                       <span className="text-xs text-slate-500 font-mono">
-                        {p.reserved || 0} {p.unit}
+                        {p.reserved || 0} {p.unit || 'pcs'}
                       </span>
                     </td>
                     <td>
                       <span className={`font-bold text-xs font-mono ${p.available <= 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {p.available} {p.unit}
+                        {p.available} {p.unit || 'pcs'}
                       </span>
                     </td>
                     <td>
-                      <span className="font-mono text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-700">
-                        {p.locationName}
+                      <span className="font-mono text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-700 border border-slate-200">
+                        {p.locationName || 'Rack A - Primary'}
                       </span>
                     </td>
                     <td>

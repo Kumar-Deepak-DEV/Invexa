@@ -303,8 +303,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu = () => {} })
           title="Open Profile Settings"
         >
           <img
-            src={currentUser.avatar}
-            alt={currentUser.fullName}
+            src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+            alt={currentUser?.fullName || currentUser?.name || 'User'}
             className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-100 group-hover:ring-blue-300 shadow-2xs transition-all"
           />
         </div>

@@ -2,11 +2,6 @@ const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
 
-/**
- * Fixed hierarchy depth for v1: Warehouse -> Location (Rack). Not
- * configurable. Do not extend this into a generalized tree/parent-child
- * structure — that's explicitly out of scope (PRD §5.9, §8, §10).
- */
 const LocationSchema = new Schema(
   {
     warehouseId: {
@@ -18,6 +13,39 @@ const LocationSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    code: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    warehouseName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    type: {
+      type: String,
+      trim: true,
+      default: 'Storage',
+    },
+    capacity: {
+      type: Number,
+      default: 5000,
+    },
+    occupied: {
+      type: Number,
+      default: 0,
+    },
+    aisle: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    shelf: {
+      type: String,
+      trim: true,
+      default: '',
     },
     active: {
       type: Boolean,
