@@ -528,10 +528,17 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ]);
 
       setData(prev => {
-        const products = prodsRes.status === 'fulfilled' && prodsRes.value && Array.isArray(prodsRes.value) && prodsRes.value.length > 0 ? prodsRes.value : prev.products;
-        const warehouses = whsRes.status === 'fulfilled' && whsRes.value && Array.isArray(whsRes.value) && whsRes.value.length > 0 ? whsRes.value : prev.warehouses;
-        const locations = locsRes.status === 'fulfilled' && locsRes.value && Array.isArray(locsRes.value) && locsRes.value.length > 0 ? locsRes.value : prev.locations;
-        const categories = catsRes.status === 'fulfilled' && catsRes.value && Array.isArray(catsRes.value) && catsRes.value.length > 0 ? catsRes.value : prev.categories;
+        const rawProds = prodsRes.status === 'fulfilled' && prodsRes.value ? ((prodsRes.value as any).data || prodsRes.value) : null;
+        const products = Array.isArray(rawProds) && rawProds.length > 0 ? rawProds : prev.products;
+
+        const rawWhs = whsRes.status === 'fulfilled' && whsRes.value ? ((whsRes.value as any).data || (whsRes.value as any).warehouses || whsRes.value) : null;
+        const warehouses = Array.isArray(rawWhs) && rawWhs.length > 0 ? rawWhs : prev.warehouses;
+
+        const rawLocs = locsRes.status === 'fulfilled' && locsRes.value ? ((locsRes.value as any).data || locsRes.value) : null;
+        const locations = Array.isArray(rawLocs) && rawLocs.length > 0 ? rawLocs : prev.locations;
+
+        const rawCats = catsRes.status === 'fulfilled' && catsRes.value ? ((catsRes.value as any).data || catsRes.value) : null;
+        const categories = Array.isArray(rawCats) && rawCats.length > 0 ? rawCats : prev.categories;
 
         const rawReceipts = rcptsRes.status === 'fulfilled' && rcptsRes.value?.data ? rcptsRes.value.data : (rcptsRes.status === 'fulfilled' && Array.isArray(rcptsRes.value) ? rcptsRes.value : prev.receipts);
         const receipts = (rawReceipts || []).map((r: any) => {
