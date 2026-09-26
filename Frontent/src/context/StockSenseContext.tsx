@@ -619,10 +619,54 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           };
         });
 
-        const transfers = trfsRes.status === 'fulfilled' && trfsRes.value?.data ? trfsRes.value.data : prev.transfers;
-        const adjustments = adjsRes.status === 'fulfilled' && adjsRes.value?.data ? adjsRes.value.data : prev.adjustments;
-        const ledger = ledgRes.status === 'fulfilled' && ledgRes.value?.data ? ledgRes.value.data : prev.ledger;
-        const moveHistory = movsRes.status === 'fulfilled' && movsRes.value?.data ? movsRes.value.data : prev.moveHistory;
+        const transfers = trfsRes.status === 'fulfilled' && trfsRes.value?.data ? trfsRes.value.data : (trfsRes.status === 'fulfilled' && Array.isArray(trfsRes.value) ? trfsRes.value : prev.transfers);
+        const adjustments = adjsRes.status === 'fulfilled' && adjsRes.value?.data ? adjsRes.value.data : (adjsRes.status === 'fulfilled' && Array.isArray(adjsRes.value) ? adjsRes.value : prev.adjustments);
+
+        const rawLedger = ledgRes.status === 'fulfilled' && ledgRes.value?.data ? ledgRes.value.data : (ledgRes.status === 'fulfilled' && Array.isArray(ledgRes.value) ? ledgRes.value : prev.ledger);
+        const ledger = (rawLedger || []).map((l: any) => {
+          const prod = products.find((p: Product) => p.id === (l.productId?._id || l.productId?.toString() || l.productId));
+          const wh = warehouses.find((w: Warehouse) => w.id === (l.warehouseId?._id || l.warehouseId?.toString() || l.warehouseId));
+          const loc = locations.find((loc: StorageLocation) => loc.id === (l.locationId?._id || l.locationId?.toString() || l.locationId));
+          const deltaNum = typeof l.qtyChange === 'number' ? l.qtyChange : (l.delta ? Number(l.delta.toString()) : 0);
+          const changeType = l.changeType || (deltaNum > 0 ? 'IN' : deltaNum < 0 ? 'OUT' : 'TRANSFER');
+          return {
+            id: l._id || l.id || `LED-${Date.now().toString().slice(-4)}`,
+            date: l.date || (l.timestamp ? new Date(l.timestamp).toLocaleString() : new Date().toLocaleString()),
+            reference: l.reference || l.referenceId || (l._id ? `REF-${l._id.toString().slice(-4).toUpperCase()}` : 'AUDIT-LOG'),
+            productId: l.productId?._id || l.productId?.toString() || l.productId || prod?.id || 'PROD-001',
+            productName: l.productName || prod?.name || 'Inventory Product',
+            operation: l.operation || l.type || 'Stock Movement',
+            changeType: changeType as 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT',
+            qtyChange: deltaNum,
+            unit: l.unit || prod?.unit || 'units',
+            prevStock: Number(l.prevStock !== undefined ? l.prevStock : (l.balanceAfter ? Number(l.balanceAfter.toString()) - deltaNum : 0)),
+            newStock: Number(l.newStock !== undefined ? l.newStock : (l.balanceAfter ? Number(l.balanceAfter.toString()) : deltaNum)),
+            warehouse: l.warehouse || wh?.name || 'Main Warehouse',
+            location: l.location || loc?.name || 'Rack A',
+            user: typeof l.user === 'string' ? l.user : (l.user?.name || 'System Operator')
+          };
+        });
+
+        const rawMoveHistory = movsRes.status === 'fulfilled' && movsRes.value?.data ? movsRes.value.data : (movsRes.status === 'fulfilled' && Array.isArray(movsRes.value) ? movsRes.value : prev.moveHistory);
+        const moveHistory = (rawMoveHistory || []).map((m: any) => {
+          const prod = products.find((p: Product) => p.id === (m.productId?._id || m.productId?.toString() || m.productId));
+          const deltaNum = m.quantity ? Number(m.quantity) : (m.delta ? Math.abs(Number(m.delta.toString())) : 0);
+          const dir = m.direction || (m.delta && Number(m.delta.toString()) < 0 ? 'OUT' : 'IN');
+          return {
+            id: m._id || m.id || `MOV-${Date.now().toString().slice(-4)}`,
+            date: m.date || (m.timestamp ? new Date(m.timestamp).toLocaleString() : new Date().toLocaleString()),
+            reference: m.reference || m.referenceId || (m._id ? `MOV-${m._id.toString().slice(-4).toUpperCase()}` : 'WH/LOG'),
+            type: m.type || 'Stock Movement',
+            product: m.product || prod?.name || 'Inventory Item',
+            from: m.from || (dir === 'OUT' ? 'Warehouse Rack' : 'Supplier Dispatch'),
+            to: m.to || (dir === 'IN' ? 'Warehouse Bay' : 'Customer Destination'),
+            quantity: typeof m.quantity === 'string' ? m.quantity : `${deltaNum} ${prod?.unit || 'units'}`,
+            unit: m.unit || prod?.unit || 'units',
+            direction: dir as 'IN' | 'OUT' | 'TRANSFER',
+            user: typeof m.user === 'string' ? m.user : (m.user?.name || 'System Operator'),
+            status: m.status || 'Done'
+          };
+        });
 
         return {
           ...prev,

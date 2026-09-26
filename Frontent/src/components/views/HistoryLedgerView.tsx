@@ -65,13 +65,22 @@ export const HistoryLedgerView: React.FC = () => {
 
   // Filtered Move History
   const filteredHistory = useMemo(() => {
-    return moveHistory.filter((item) => {
+    const term = (searchTerm || '').toLowerCase().trim();
+    return (moveHistory || []).filter((item) => {
+      if (!item) return false;
+      const ref = String(item.reference || '').toLowerCase();
+      const prod = String(item.product || '').toLowerCase();
+      const fromLoc = String(item.from || '').toLowerCase();
+      const toLoc = String(item.to || '').toLowerCase();
+      const usr = String(typeof item.user === 'string' ? item.user : (item.user as any)?.name || '').toLowerCase();
+
       const matchesSearch =
-        item.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.from.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.to.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.user.toLowerCase().includes(searchTerm.toLowerCase());
+        !term ||
+        ref.includes(term) ||
+        prod.includes(term) ||
+        fromLoc.includes(term) ||
+        toLoc.includes(term) ||
+        usr.includes(term);
 
       const matchesDirection =
         directionFilter === 'ALL' || item.direction === directionFilter;
@@ -82,13 +91,24 @@ export const HistoryLedgerView: React.FC = () => {
 
   // Filtered Ledger
   const filteredLedger = useMemo(() => {
-    return ledger.filter((item) => {
+    const term = (searchTerm || '').toLowerCase().trim();
+    return (ledger || []).filter((item) => {
+      if (!item) return false;
+      const ref = String(item.reference || '').toLowerCase();
+      const prodName = String(item.productName || '').toLowerCase();
+      const prodId = String(item.productId || '').toLowerCase();
+      const usr = String(typeof item.user === 'string' ? item.user : (item.user as any)?.name || '').toLowerCase();
+      const op = String(item.operation || '').toLowerCase();
+      const wh = String(item.warehouse || '').toLowerCase();
+
       const matchesSearch =
-        item.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.productId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.operation.toLowerCase().includes(searchTerm.toLowerCase());
+        !term ||
+        ref.includes(term) ||
+        prodName.includes(term) ||
+        prodId.includes(term) ||
+        usr.includes(term) ||
+        op.includes(term) ||
+        wh.includes(term);
 
       const matchesDirection =
         directionFilter === 'ALL' || item.changeType === directionFilter;
