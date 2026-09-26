@@ -180,7 +180,12 @@ function requireRole(...roles) {
     }
 
     const userRole = req.user.role.toLowerCase();
+    const isManager = userRole === 'manager' || userRole.includes('manager') || userRole.includes('admin');
     const allowedRoles = roles.map(r => r.toLowerCase());
+
+    if (allowedRoles.includes('manager') && isManager) {
+      return next();
+    }
 
     if (!allowedRoles.includes(userRole)) {
       return next(new ApiError(403, 'FORBIDDEN', `Role '${req.user.role}' does not have access to this resource`));
@@ -201,12 +206,16 @@ function requireWarehouseAccess(getWarehouseIds) {
         return next(new ApiError(401, 'UNAUTHORIZED', 'Authentication required'));
       }
 
-      // Managers have access to all warehouses
-      if (req.user.role && req.user.role.toLowerCase() === 'manager') {
+      // Managers and unconstrained operators have access to all warehouses
+      const roleLower = (req.user.role || '').toLowerCase();
+      const isManager = roleLower === 'manager' || roleLower.includes('manager') || roleLower.includes('admin');
+      const assigned = (req.user.assignedWarehouses || []).map(id => id.toString());
+
+      if (isManager || assigned.length === 0) {
         return next();
       }
 
-      // If user is Staff, verify they have access to all required warehouses
+      // If user is Staff with explicit assigned warehouses, verify access
       const rawIds = await Promise.resolve(getWarehouseIds(req));
       const requiredWarehouseIds = (Array.isArray(rawIds) ? rawIds : [rawIds])
         .filter(Boolean)
@@ -215,8 +224,6 @@ function requireWarehouseAccess(getWarehouseIds) {
       if (requiredWarehouseIds.length === 0) {
         return next();
       }
-
-      const assigned = (req.user.assignedWarehouses || []).map(id => id.toString());
 
       const hasAccessToAll = requiredWarehouseIds.every(whId => assigned.includes(whId));
 
