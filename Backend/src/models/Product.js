@@ -15,29 +15,79 @@ const ProductSchema = new Schema(
       unique: true,
       trim: true,
     },
-    // Free text for v1 — deliberately not a separate Category collection
-    // with CRUD (PRD §5.2, §8). Do not add a Category model.
     category: {
+      type: String,
+      trim: true,
+      default: 'General',
+    },
+    categoryId: {
       type: String,
       trim: true,
       default: '',
     },
     unitOfMeasure: {
       type: String,
-      required: true,
+      default: 'units',
       trim: true,
     },
-    // Nullable. If set, the dashboard's low-stock KPI (owned by Segment B)
-    // uses this value; if null, it falls back to a global threshold.
-    // This field IS the low-stock KPI's input per PRD §5.2, §5.10.
-    reorderPoint: {
+    unit: {
+      type: String,
+      default: 'units',
+      trim: true,
+    },
+    costPrice: {
       type: Number,
-      default: null,
+      default: 0,
       min: 0,
     },
-    // Deliberately NO reorderQuantity field — no v1 consumer exists
-    // (no automated reordering in v1 per PRD §5.2, §7, §8).
-    // Soft-delete only, never hard DELETE.
+    sellingPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    description: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    warehouseId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Warehouse',
+      default: null,
+    },
+    locationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Location',
+      default: null,
+    },
+    warehouseName: {
+      type: String,
+      default: '',
+    },
+    locationName: {
+      type: String,
+      default: '',
+    },
+    reorderPoint: {
+      type: Number,
+      default: 10,
+      min: 0,
+    },
+    reorderLevel: {
+      type: Number,
+      default: 10,
+      min: 0,
+    },
+    maxStock: {
+      type: Number,
+      default: 500,
+      min: 0,
+    },
+    reorderQty: {
+      type: Number,
+      default: 50,
+      min: 0,
+    },
     active: {
       type: Boolean,
       default: true,

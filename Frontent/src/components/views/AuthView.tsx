@@ -94,22 +94,23 @@ export const AuthView: React.FC = () => {
   }, [mode, otpTimer]);
 
   // Handle Login Submit
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginId.trim() || !loginPassword.trim()) {
       showToast('Please enter both Login ID and Password', 'warning');
       return;
     }
 
-    login(loginId, 'Inventory Manager');
-    showToast(`Welcome back, ${loginId}!`, 'success');
-    setActiveView('dashboard');
+    const result = await login(loginId.trim(), loginPassword);
+    if (result.success) {
+      setActiveView('dashboard');
+    }
   };
 
   // Handle Register Submit
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regFullName.trim() || !regEmail.trim()) {
+    if (!regFullName.trim() || !regEmail.trim() || !regPassword.trim()) {
       showToast('Please fill all required fields', 'warning');
       return;
     }
@@ -132,15 +133,19 @@ export const AuthView: React.FC = () => {
 
     const assignedLoginId = regLoginId.trim() || regEmail.split('@')[0];
 
-    registerUser({
-      fullName: regFullName,
+    const result = await registerUser({
+      fullName: regFullName.trim(),
       loginId: assignedLoginId,
-      email: regEmail,
+      email: regEmail.trim(),
+      password: regPassword,
+      phone: regPhone.trim(),
+      role: regRole,
     });
 
-    showToast('Account registered successfully! Please sign in.', 'success');
-    setLoginId(assignedLoginId);
-    setMode('login');
+    if (result.success) {
+      setLoginId(assignedLoginId);
+      setActiveView('dashboard');
+    }
   };
 
   // Handle Forgot Password Request

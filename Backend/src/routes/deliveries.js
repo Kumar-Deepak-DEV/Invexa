@@ -81,13 +81,14 @@ router.post(
   requireWarehouseAccess(req => [req.body.warehouseId]),
   async (req, res, next) => {
     try {
-      const { warehouseId, locationId, customer, lines, status } = req.body;
+      const { warehouseId, locationId, customer, lines, items, status } = req.body;
 
       if (!warehouseId || !locationId) {
         throw new ApiError(400, 'VALIDATION_ERROR', 'warehouseId and locationId are required');
       }
 
-      const formattedLines = validateLineItems(lines);
+      const rawLines = lines || items || [];
+      const formattedLines = validateLineItems(rawLines);
 
       const initialStatus = ['draft', 'waiting', 'ready'].includes(status) ? status : 'draft';
 

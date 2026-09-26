@@ -4,6 +4,10 @@ const errorHandler = require('./middleware/errorHandler');
 
 // Route imports
 const authRouter = require('./routes/auth');
+const productsRouter = require('./routes/products');
+const warehousesRouter = require('./routes/warehouses');
+const locationsRouter = require('./routes/locations');
+const categoriesRouter = require('./routes/categories');
 const receiptsRouter = require('./routes/receipts');
 const deliveriesRouter = require('./routes/deliveries');
 const transfersRouter = require('./routes/transfers');
@@ -26,6 +30,10 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRouter);
 app.use('/api/setup', authRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/warehouses', warehousesRouter);
+app.use('/api/locations', locationsRouter);
+app.use('/api/categories', categoriesRouter);
 app.use('/api/receipts', receiptsRouter);
 app.use('/api/deliveries', deliveriesRouter);
 app.use('/api/transfers', transfersRouter);

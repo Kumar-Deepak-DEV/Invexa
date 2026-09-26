@@ -68,6 +68,7 @@ export const ProfileView: React.FC = () => {
   const {
     currentUser,
     updateUserProfile,
+    changePassword,
     warehouses,
     products,
     receipts,
@@ -169,7 +170,7 @@ export const ProfileView: React.FC = () => {
   };
 
   // Handle Password Change
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       showToast('New passwords do not match', 'danger');
@@ -179,10 +180,14 @@ export const ProfileView: React.FC = () => {
       showToast('Password must be at least 8 characters long', 'warning');
       return;
     }
-    showToast('Password credentials changed successfully!', 'success');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (e) {
+      // Toast already handled by context
+    }
   };
 
   // Handle Export Backup

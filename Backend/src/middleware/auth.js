@@ -201,8 +201,9 @@ function requireWarehouseAccess(getWarehouseIds) {
         return next(new ApiError(401, 'UNAUTHORIZED', 'Authentication required'));
       }
 
-      // Managers have access to all warehouses
-      if (req.user.role && req.user.role.toLowerCase() === 'manager') {
+      // Managers and Administrators have access to all warehouses
+      const role = (req.user.role || '').toLowerCase();
+      if (role === 'manager' || role.includes('manager') || role === 'admin' || role === 'administrator') {
         return next();
       }
 
@@ -217,6 +218,11 @@ function requireWarehouseAccess(getWarehouseIds) {
       }
 
       const assigned = (req.user.assignedWarehouses || []).map(id => id.toString());
+
+      // If staff has no specific warehouse restrictions assigned, grant open access by default
+      if (assigned.length === 0) {
+        return next();
+      }
 
       const hasAccessToAll = requiredWarehouseIds.every(whId => assigned.includes(whId));
 

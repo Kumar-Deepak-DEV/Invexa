@@ -9,9 +9,45 @@ const WarehouseSchema = new Schema(
       required: true,
       trim: true,
     },
-    // Soft-delete only. DELETE /api/warehouses/:id sets this to false
-    // instead of removing the document — and only after confirming (via
-    // Segment B's hasNonZeroStock) that no stock remains in it (PRD §5.9, §13).
+    code: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    shortName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    city: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    address: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    type: {
+      type: String,
+      trim: true,
+      default: 'Central Hub',
+    },
+    capacity: {
+      type: Number,
+      default: 10000,
+    },
+    manager: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    status: {
+      type: String,
+      enum: ['Active', 'Inactive', 'Maintenance'],
+      default: 'Active',
+    },
     active: {
       type: Boolean,
       default: true,
