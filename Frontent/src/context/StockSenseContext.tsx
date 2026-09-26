@@ -508,6 +508,11 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Live Refresh from Backend
   const refreshData = useCallback(async () => {
+    const token = localStorage.getItem('stocksense_auth_token');
+    if (!token) {
+      return;
+    }
+
     try {
       const [prodsRes, whsRes, locsRes, catsRes, rcptsRes, delsRes, trfsRes, adjsRes, ledgRes, movsRes] = await Promise.allSettled([
         api.getProducts(),

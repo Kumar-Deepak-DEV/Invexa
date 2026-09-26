@@ -37,6 +37,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const data = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      localStorage.removeItem('stocksense_auth_token');
+    }
     const errorObj = data && typeof data === 'object' && 'error' in data ? (data as { error: { code: string; message: string; details?: Record<string, unknown> } }).error : null;
     const code = errorObj?.code || (response.status === 401 ? 'UNAUTHORIZED' : response.status === 403 ? 'FORBIDDEN' : 'SERVER_ERROR');
     const message = errorObj?.message || (typeof data === 'string' ? data : `Request failed with status ${response.status}`);
