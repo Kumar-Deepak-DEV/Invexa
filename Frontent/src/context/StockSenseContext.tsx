@@ -619,8 +619,72 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           };
         });
 
-        const transfers = trfsRes.status === 'fulfilled' && trfsRes.value?.data ? trfsRes.value.data : (trfsRes.status === 'fulfilled' && Array.isArray(trfsRes.value) ? trfsRes.value : prev.transfers);
-        const adjustments = adjsRes.status === 'fulfilled' && adjsRes.value?.data ? adjsRes.value.data : (adjsRes.status === 'fulfilled' && Array.isArray(adjsRes.value) ? adjsRes.value : prev.adjustments);
+        const rawTransfers = trfsRes.status === 'fulfilled' && trfsRes.value?.data ? trfsRes.value.data : (trfsRes.status === 'fulfilled' && Array.isArray(trfsRes.value) ? trfsRes.value : prev.transfers);
+        const transfers = (rawTransfers || []).map((t: any) => {
+          const firstLine = (t.lines && t.lines[0]) || {};
+          const pId = t.productId || firstLine.productId?._id || firstLine.productId?.toString() || firstLine.productId || 'PROD-001';
+          const prod = products.find((p: Product) => p.id === pId || p.sku === (firstLine.sku || t.sku));
+          const fromWh = warehouses.find((w: Warehouse) => w.id === (t.sourceWarehouseId?._id || t.sourceWarehouseId?.toString() || t.fromWarehouseId || t.sourceWarehouseId));
+          const fromLoc = locations.find((l: StorageLocation) => l.id === (t.sourceLocationId?._id || t.sourceLocationId?.toString() || t.fromLocationId || t.sourceLocationId));
+          const toWh = warehouses.find((w: Warehouse) => w.id === (t.destWarehouseId?._id || t.destWarehouseId?.toString() || t.toWarehouseId || t.destWarehouseId));
+          const toLoc = locations.find((l: StorageLocation) => l.id === (t.destLocationId?._id || t.destLocationId?.toString() || t.toLocationId || t.destLocationId));
+          const qty = Number(t.quantity || firstLine.quantity || 10);
+
+          return {
+            id: t._id || t.id || `TRF-${Date.now().toString().slice(-4)}`,
+            reference: t.reference || (t._id ? `WH/TRF/${t._id.toString().slice(-4).toUpperCase()}` : 'WH/TRF/0001'),
+            productName: t.productName || prod?.name || 'Steel Rods (12mm High-Grade)',
+            productId: pId,
+            sku: t.sku || prod?.sku || 'STL-001',
+            fromWarehouseId: fromWh?.id || t.sourceWarehouseId || t.fromWarehouseId || 'WH-001',
+            fromWarehouseName: t.fromWarehouseName || fromWh?.shortName || fromWh?.name || 'Main Warehouse',
+            fromLocationId: fromLoc?.id || t.sourceLocationId || t.fromLocationId || 'LOC-001',
+            fromLocationName: t.fromLocationName || fromLoc?.name || 'Rack A - Heavy Metals & Raw',
+            toWarehouseId: toWh?.id || t.destWarehouseId || t.toWarehouseId || 'WH-002',
+            toWarehouseName: t.toWarehouseName || toWh?.shortName || toWh?.name || 'Production Warehouse',
+            toLocationId: toLoc?.id || t.destLocationId || t.toLocationId || 'LOC-006',
+            toLocationName: t.toLocationName || toLoc?.name || 'Production Rack - Assembly Line 1',
+            quantity: qty,
+            unit: t.unit || prod?.unit || 'kg',
+            reason: t.reason || t.notes || 'Shop floor manufacturing production allocation',
+            responsible: t.responsible || (typeof t.createdBy === 'object' ? (t.createdBy?.name || t.createdBy?.fullName) : 'Alex Rivera'),
+            status: (t.status === 'done' || t.status === 'Done' ? 'Done' : 'Pending') as 'Done' | 'Pending',
+            date: t.date || (t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+            createdAt: t.createdAt || new Date().toISOString()
+          };
+        });
+
+        const rawAdjustments = adjsRes.status === 'fulfilled' && adjsRes.value?.data ? adjsRes.value.data : (adjsRes.status === 'fulfilled' && Array.isArray(adjsRes.value) ? adjsRes.value : prev.adjustments);
+        const adjustments = (rawAdjustments || []).map((a: any) => {
+          const pId = a.productId?._id || a.productId?.toString() || a.productId || 'PROD-001';
+          const prod = products.find((p: Product) => p.id === pId);
+          const wh = warehouses.find((w: Warehouse) => w.id === (a.warehouseId?._id || a.warehouseId?.toString() || a.warehouseId));
+          const loc = locations.find((l: StorageLocation) => l.id === (a.locationId?._id || a.locationId?.toString() || a.locationId));
+          const diff = Number(a.difference !== undefined ? a.difference : (a.delta !== undefined ? a.delta : -3));
+          const sysQty = Number(a.systemQuantity !== undefined ? a.systemQuantity : (a.balanceAfter ? Number(a.balanceAfter) - diff : 100));
+          const physCount = Number(a.physicalCount !== undefined ? a.physicalCount : sysQty + diff);
+
+          return {
+            id: a._id || a.id || `ADJ-${Date.now().toString().slice(-4)}`,
+            reference: a.reference || (a._id ? `WH/ADJ/${a._id.toString().slice(-4).toUpperCase()}` : 'WH/ADJ/0001'),
+            productName: a.productName || prod?.name || 'Steel Rods (12mm High-Grade)',
+            productId: pId,
+            sku: a.sku || prod?.sku || 'STL-001',
+            warehouseId: wh?.id || a.warehouseId || 'WH-001',
+            warehouseName: a.warehouseName || wh?.shortName || wh?.name || 'Main Warehouse',
+            locationId: loc?.id || a.locationId || 'LOC-001',
+            locationName: a.locationName || loc?.name || 'Rack A - Heavy Metals & Raw',
+            systemQuantity: sysQty,
+            physicalCount: physCount,
+            difference: diff,
+            unit: a.unit || prod?.unit || 'kg',
+            reason: a.reason || a.reasonCode || 'Damaged during material handler movement',
+            responsible: a.responsible || (typeof a.createdBy === 'object' ? (a.createdBy?.name || a.createdBy?.fullName) : 'Alex Rivera'),
+            status: (a.status === 'applied' || a.status === 'Applied' || a.status === 'done' ? 'Applied' : 'Draft') as 'Applied' | 'Draft',
+            date: a.date || (a.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+            createdAt: a.createdAt || new Date().toISOString()
+          };
+        });
 
         const rawLedger = ledgRes.status === 'fulfilled' && ledgRes.value?.data ? ledgRes.value.data : (ledgRes.status === 'fulfilled' && Array.isArray(ledgRes.value) ? ledgRes.value : prev.ledger);
         const ledger = (rawLedger || []).map((l: any) => {
