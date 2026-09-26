@@ -179,7 +179,7 @@ export const DashboardView: React.FC = () => {
             </span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mt-1.5 font-display">
-            Good morning, {currentUser.fullName} 👋
+            Good morning, {currentUser?.fullName || currentUser?.name || currentUser?.loginId || 'Operations Leader'} 👋
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Real-time multi-warehouse operations summary, stock alerts, and fulfillment pipelines.
@@ -550,7 +550,7 @@ export const DashboardView: React.FC = () => {
                         )}
                       </div>
                       <p className="text-[11px] text-slate-500 truncate max-w-[180px] sm:max-w-xs">
-                        {r.supplier} • {r.items.length} line(s)
+                        {r.supplier || 'Supplier'} • {(r.items || []).length} line(s)
                       </p>
                     </div>
                   </div>
@@ -613,7 +613,7 @@ export const DashboardView: React.FC = () => {
             </div>
 
             <div className="divide-y divide-slate-100">
-              {deliveries.slice(0, 3).map(d => (
+              {(deliveries || []).slice(0, 3).map(d => (
                 <div
                   key={d.id}
                   onClick={() => {
@@ -634,7 +634,7 @@ export const DashboardView: React.FC = () => {
                         )}
                       </div>
                       <p className="text-[11px] text-slate-500 truncate max-w-[180px] sm:max-w-xs">
-                        {d.customer} • {d.items.length} line(s)
+                        {d.customer || 'Customer'} • {(d.items || []).length} line(s)
                       </p>
                     </div>
                   </div>

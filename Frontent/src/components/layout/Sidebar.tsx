@@ -231,17 +231,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <img
-            src={currentUser.avatar}
-            alt={currentUser.fullName}
+            src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+            alt={currentUser?.fullName || currentUser?.name || 'User'}
             className="w-9 h-9 rounded-xl object-cover ring-2 ring-blue-100 shrink-0"
           />
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <span className="text-xs font-bold text-slate-900 truncate block">
-                {currentUser.fullName}
+                {currentUser?.fullName || currentUser?.name || currentUser?.loginId || 'User'}
               </span>
               <span className="text-[10px] text-slate-400 truncate block font-medium">
-                {currentUser.role}
+                {currentUser?.role || 'Inventory Manager'}
               </span>
             </div>
           )}

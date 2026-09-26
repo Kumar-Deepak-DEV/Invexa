@@ -462,7 +462,12 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem(USER_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return { ...DEFAULT_USER, ...parsed };
+        }
+      }
     } catch (e) {}
     return DEFAULT_USER;
   });
@@ -518,12 +523,90 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ]);
 
       setData(prev => {
-        const products = prodsRes.status === 'fulfilled' && prodsRes.value && prodsRes.value.length > 0 ? prodsRes.value : prev.products;
-        const warehouses = whsRes.status === 'fulfilled' && whsRes.value && whsRes.value.length > 0 ? whsRes.value : prev.warehouses;
-        const locations = locsRes.status === 'fulfilled' && locsRes.value && locsRes.value.length > 0 ? locsRes.value : prev.locations;
-        const categories = catsRes.status === 'fulfilled' && catsRes.value && catsRes.value.length > 0 ? catsRes.value : prev.categories;
-        const receipts = rcptsRes.status === 'fulfilled' && rcptsRes.value?.data ? rcptsRes.value.data : prev.receipts;
-        const deliveries = delsRes.status === 'fulfilled' && delsRes.value?.data ? delsRes.value.data : prev.deliveries;
+        const products = prodsRes.status === 'fulfilled' && prodsRes.value && Array.isArray(prodsRes.value) && prodsRes.value.length > 0 ? prodsRes.value : prev.products;
+        const warehouses = whsRes.status === 'fulfilled' && whsRes.value && Array.isArray(whsRes.value) && whsRes.value.length > 0 ? whsRes.value : prev.warehouses;
+        const locations = locsRes.status === 'fulfilled' && locsRes.value && Array.isArray(locsRes.value) && locsRes.value.length > 0 ? locsRes.value : prev.locations;
+        const categories = catsRes.status === 'fulfilled' && catsRes.value && Array.isArray(catsRes.value) && catsRes.value.length > 0 ? catsRes.value : prev.categories;
+
+        const rawReceipts = rcptsRes.status === 'fulfilled' && rcptsRes.value?.data ? rcptsRes.value.data : (rcptsRes.status === 'fulfilled' && Array.isArray(rcptsRes.value) ? rcptsRes.value : prev.receipts);
+        const receipts = (rawReceipts || []).map((r: any) => {
+          const items = (r.items || r.lines || []).map((line: any) => {
+            const prod = products.find((p: Product) => p.id === (line.productId?._id || line.productId));
+            return {
+              productId: line.productId?._id || line.productId || 'PROD-001',
+              productName: line.productName || prod?.name || 'Raw Material Item',
+              sku: line.sku || prod?.sku || 'SKU-RAW',
+              expectedQty: Number(line.expectedQty || line.quantity || 0),
+              receivedQty: Number(line.receivedQty || (r.status === 'done' || r.status === 'Done' ? (line.expectedQty || line.quantity) : 0)),
+              unit: line.unit || prod?.unit || 'units',
+              location: line.location || 'Rack A - Primary',
+              unitCost: Number(line.unitCost || prod?.costPrice || 50)
+            };
+          });
+          const wh = warehouses.find((w: Warehouse) => w.id === (r.warehouseId?._id || r.warehouseId));
+          const loc = locations.find((l: StorageLocation) => l.id === (r.locationId?._id || r.locationId));
+          const statusStr = (r.status || 'draft').toLowerCase();
+          const normalizedStatus = statusStr === 'done' ? 'Done' : statusStr === 'ready' ? 'Ready' : statusStr === 'waiting' ? 'Waiting' : statusStr === 'canceled' ? 'Canceled' : 'Draft';
+
+          return {
+            id: r._id || r.id || `REC-${Date.now().toString().slice(-4)}`,
+            reference: r.reference || (r._id ? `WH/IN/${r._id.toString().slice(-4).toUpperCase()}` : 'WH/IN/0001'),
+            supplier: r.supplier || 'Primary Supplier Co.',
+            warehouseId: r.warehouseId?._id || r.warehouseId || (wh?.id || 'WH-001'),
+            warehouseName: r.warehouseName || wh?.shortName || wh?.name || 'Main Warehouse',
+            locationId: r.locationId?._id || r.locationId || (loc?.id || 'LOC-001'),
+            locationName: r.locationName || loc?.name || 'Rack A',
+            scheduledDate: r.scheduledDate || (r.createdAt ? new Date(r.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+            responsible: r.responsible || (typeof r.createdBy === 'object' ? (r.createdBy?.name || r.createdBy?.fullName) : 'Alex Rivera'),
+            status: normalizedStatus as Receipt['status'],
+            notes: r.notes || '',
+            items,
+            createdAt: r.createdAt || new Date().toISOString(),
+            validatedAt: r.validatedAt || null,
+            isLate: Boolean(r.isLate)
+          };
+        });
+
+        const rawDeliveries = delsRes.status === 'fulfilled' && delsRes.value?.data ? delsRes.value.data : (delsRes.status === 'fulfilled' && Array.isArray(delsRes.value) ? delsRes.value : prev.deliveries);
+        const deliveries = (rawDeliveries || []).map((d: any) => {
+          const items = (d.items || d.lines || []).map((line: any) => {
+            const prod = products.find((p: Product) => p.id === (line.productId?._id || line.productId));
+            return {
+              productId: line.productId?._id || line.productId || 'PROD-001',
+              productName: line.productName || prod?.name || 'Outbound Item',
+              sku: line.sku || prod?.sku || 'SKU-OUT',
+              requestedQty: Number(line.requestedQty || line.quantity || 0),
+              deliveredQty: Number(line.deliveredQty || (d.status === 'done' || d.status === 'Done' ? (line.requestedQty || line.quantity) : 0)),
+              unit: line.unit || prod?.unit || 'units',
+              location: line.location || 'Rack B - Assembly',
+              availableStock: Number(line.availableStock || prod?.available || 50)
+            };
+          });
+          const wh = warehouses.find((w: Warehouse) => w.id === (d.warehouseId?._id || d.warehouseId));
+          const loc = locations.find((l: StorageLocation) => l.id === (d.locationId?._id || d.locationId));
+          const statusStr = (d.status || 'draft').toLowerCase();
+          const normalizedStatus = statusStr === 'done' ? 'Done' : statusStr === 'ready' ? 'Ready' : statusStr === 'waiting' ? 'Waiting' : statusStr === 'canceled' ? 'Canceled' : 'Draft';
+
+          return {
+            id: d._id || d.id || `DEL-${Date.now().toString().slice(-4)}`,
+            reference: d.reference || (d._id ? `WH/OUT/${d._id.toString().slice(-4).toUpperCase()}` : 'WH/OUT/0001'),
+            customer: d.customer || 'Enterprise Client',
+            warehouseId: d.warehouseId?._id || d.warehouseId || (wh?.id || 'WH-001'),
+            warehouseName: d.warehouseName || wh?.shortName || wh?.name || 'Main Warehouse',
+            locationId: d.locationId?._id || d.locationId || (loc?.id || 'LOC-002'),
+            locationName: d.locationName || loc?.name || 'Rack B',
+            scheduledDate: d.scheduledDate || (d.createdAt ? new Date(d.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+            responsible: d.responsible || (typeof d.createdBy === 'object' ? (d.createdBy?.name || d.createdBy?.fullName) : 'Alex Rivera'),
+            status: normalizedStatus as DeliveryOrder['status'],
+            notes: d.notes || '',
+            carrier: d.carrier || 'Express Freight Logistics',
+            items,
+            createdAt: d.createdAt || new Date().toISOString(),
+            validatedAt: d.validatedAt || null,
+            isLate: Boolean(d.isLate)
+          };
+        });
+
         const transfers = trfsRes.status === 'fulfilled' && trfsRes.value?.data ? trfsRes.value.data : prev.transfers;
         const adjustments = adjsRes.status === 'fulfilled' && adjsRes.value?.data ? adjsRes.value.data : prev.adjustments;
         const ledger = ledgRes.status === 'fulfilled' && ledgRes.value?.data ? ledgRes.value.data : prev.ledger;
@@ -535,8 +618,8 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           warehouses,
           locations,
           categories,
-          receipts,
-          deliveries,
+          receipts: receipts.length > 0 ? receipts : prev.receipts,
+          deliveries: deliveries.length > 0 ? deliveries : prev.deliveries,
           transfers,
           adjustments,
           ledger,
@@ -1404,27 +1487,36 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         password: password || 'Admin@123'
       });
 
-      if (res.token) {
+      if (res?.token) {
         localStorage.setItem('stocksense_auth_token', res.token);
       }
 
+      const userData = res?.user || {};
       const user: UserProfile = {
-        id: res.user.id || res.user._id || 'USR-001',
-        loginId: res.user.loginId || identifier,
-        fullName: res.user.fullName || res.user.name || identifier,
-        email: res.user.email || `${identifier}@stocksense.io`,
-        role: res.user.role || role || 'Inventory Manager',
-        warehouse: res.user.warehouse || 'Main Distribution Warehouse (WH-001)',
-        phone: res.user.phone || '+91 98765 43210',
-        avatar: res.user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        department: res.user.department || 'Supply Chain Operations',
-        joinedDate: 'March 2024'
+        ...DEFAULT_USER,
+        id: userData.id || userData._id || 'USR-001',
+        loginId: userData.loginId || identifier,
+        fullName: userData.fullName || userData.name || identifier,
+        email: userData.email || (identifier.includes('@') ? identifier : `${identifier}@invexa.io`),
+        role: userData.role || role || DEFAULT_USER.role,
+        warehouse: userData.warehouse || DEFAULT_USER.warehouse,
+        phone: userData.phone || DEFAULT_USER.phone,
+        avatar: userData.avatar || DEFAULT_USER.avatar,
+        department: userData.department || DEFAULT_USER.department,
+        joinedDate: userData.joinedDate || DEFAULT_USER.joinedDate
       };
 
       setCurrentUser(user);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
       setActiveView('dashboard');
       showToast(`Welcome back, ${user.fullName}!`, 'success');
-      await refreshData();
+
+      try {
+        await refreshData();
+      } catch (syncErr) {
+        console.warn('Post-login data sync warning:', syncErr);
+      }
+
       return { success: true };
     } catch (err: unknown) {
       const e = err as ApiError;
@@ -1446,27 +1538,36 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         role: regData.role || 'Inventory Manager'
       });
 
-      if (res.token) {
+      if (res?.token) {
         localStorage.setItem('stocksense_auth_token', res.token);
       }
 
+      const userData = res?.user || {};
       const user: UserProfile = {
-        id: res.user.id || res.user._id || `USR-${Date.now().toString().slice(-4)}`,
-        loginId: res.user.loginId || regData.loginId,
-        fullName: res.user.fullName || res.user.name || regData.fullName,
-        email: res.user.email || regData.email,
-        role: res.user.role || regData.role || 'Warehouse Operator',
-        warehouse: 'Main Distribution Warehouse (WH-001)',
-        phone: res.user.phone || regData.phone || '+91 98123 45678',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-        department: 'Logistics Operations',
+        ...DEFAULT_USER,
+        id: userData.id || userData._id || `USR-${Date.now().toString().slice(-4)}`,
+        loginId: userData.loginId || regData.loginId,
+        fullName: userData.fullName || userData.name || regData.fullName,
+        email: userData.email || regData.email,
+        role: userData.role || regData.role || 'Inventory Manager',
+        warehouse: userData.warehouse || DEFAULT_USER.warehouse,
+        phone: userData.phone || regData.phone || DEFAULT_USER.phone,
+        avatar: userData.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+        department: userData.department || 'Logistics Operations',
         joinedDate: 'September 2026'
       };
 
       setCurrentUser(user);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
       setActiveView('dashboard');
-      showToast(`Welcome to StockSense, ${user.fullName}!`, 'success');
-      await refreshData();
+      showToast(`Welcome to INVEXA, ${user.fullName}!`, 'success');
+
+      try {
+        await refreshData();
+      } catch (syncErr) {
+        console.warn('Post-register data sync warning:', syncErr);
+      }
+
       return { success: true };
     } catch (err: unknown) {
       const e = err as ApiError;

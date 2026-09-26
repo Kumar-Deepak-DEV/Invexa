@@ -293,7 +293,7 @@ export const DeliveriesView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {d.items.map((item, idx) => {
+                {(d.items || []).map((item, idx) => {
                   const prod = products.find(p => p.id === item.productId);
                   return (
                     <tr key={idx}>
@@ -425,7 +425,7 @@ export const DeliveriesView: React.FC = () => {
                   </tr>
                 ) : (
                   filteredDeliveries.map(d => {
-                    const totalUnits = d.items.reduce((sum, i) => sum + Number(i.requestedQty), 0);
+                    const totalUnits = (d.items || []).reduce((sum, i) => sum + Number(i.requestedQty || 0), 0);
                     return (
                       <tr key={d.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="whitespace-nowrap">
@@ -440,8 +440,8 @@ export const DeliveriesView: React.FC = () => {
                           <span className="font-bold text-xs text-slate-900 block">{d.customer}</span>
                         </td>
                         <td>
-                          <span className="text-xs text-slate-700 block line-clamp-1">{d.items.map(i => i.productName).join(', ')}</span>
-                          <span className="text-[10px] text-slate-400 font-mono block">{d.items.length} item(s)</span>
+                          <span className="text-xs text-slate-700 block line-clamp-1">{(d.items || []).map(i => i.productName).join(', ')}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block">{(d.items || []).length} item(s)</span>
                         </td>
                         <td className="text-center whitespace-nowrap">
                           <span className="font-bold text-xs text-slate-900">{totalUnits} units</span>
@@ -517,7 +517,7 @@ export const DeliveriesView: React.FC = () => {
                         )}
                       </div>
                       <h4 className="text-xs font-bold text-slate-900">{d.customer}</h4>
-                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{d.items.map(i => i.productName).join(', ')}</p>
+                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{(d.items || []).map(i => i.productName).join(', ')}</p>
                       <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
                         <span>{d.scheduledDate}</span>
                         <span className="font-sans font-bold text-slate-700">{d.warehouseName}</span>

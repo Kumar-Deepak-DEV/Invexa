@@ -58,6 +58,8 @@ const MainLayout: React.FC = () => {
         return <ProfileView />;
       case 'auth':
       case 'login':
+      case 'register':
+      case 'signup':
         return <AuthView />;
       default:
         return <DashboardView />;
@@ -75,7 +77,7 @@ const MainLayout: React.FC = () => {
   }
 
   // If on Auth view standalone
-  if (activeView === 'auth' || activeView === 'login') {
+  if (activeView === 'auth' || activeView === 'login' || activeView === 'register' || activeView === 'signup') {
     return (
       <div className="h-screen w-full bg-white overflow-hidden flex flex-col">
         <AuthView />

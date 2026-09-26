@@ -16,9 +16,20 @@ import {
 } from 'lucide-react';
 
 export const AuthView: React.FC = () => {
-  const { login, registerUser, showToast, setActiveView } = useStockSense();
+  const { login, registerUser, showToast, setActiveView, activeView } = useStockSense();
 
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'otp' | 'reset'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'otp' | 'reset'>(() => {
+    if (activeView === 'register' || activeView === 'signup') return 'register';
+    return 'login';
+  });
+
+  useEffect(() => {
+    if (activeView === 'register' || activeView === 'signup') {
+      setMode('register');
+    } else if (activeView === 'login' || activeView === 'auth') {
+      setMode('login');
+    }
+  }, [activeView]);
 
   // Login State
   const [loginId, setLoginId] = useState('alex.rivera');
@@ -101,9 +112,14 @@ export const AuthView: React.FC = () => {
       return;
     }
 
-    const result = await login(loginId.trim(), loginPassword);
-    if (result.success) {
-      setActiveView('dashboard');
+    try {
+      const result = await login(loginId.trim(), loginPassword);
+      if (result?.success) {
+        setActiveView('dashboard');
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Login failed';
+      showToast(errMsg, 'danger');
     }
   };
 
@@ -133,18 +149,23 @@ export const AuthView: React.FC = () => {
 
     const assignedLoginId = regLoginId.trim() || regEmail.split('@')[0];
 
-    const result = await registerUser({
-      fullName: regFullName.trim(),
-      loginId: assignedLoginId,
-      email: regEmail.trim(),
-      password: regPassword,
-      phone: regPhone.trim(),
-      role: regRole,
-    });
+    try {
+      const result = await registerUser({
+        fullName: regFullName.trim(),
+        loginId: assignedLoginId,
+        email: regEmail.trim(),
+        password: regPassword,
+        phone: regPhone.trim(),
+        role: regRole,
+      });
 
-    if (result.success) {
-      setLoginId(assignedLoginId);
-      setActiveView('dashboard');
+      if (result?.success) {
+        setLoginId(assignedLoginId);
+        setActiveView('dashboard');
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Registration failed';
+      showToast(errMsg, 'danger');
     }
   };
 
