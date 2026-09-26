@@ -528,14 +528,31 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ]);
 
       setData(prev => {
-        const rawProds = prodsRes.status === 'fulfilled' && prodsRes.value ? ((prodsRes.value as any).data || prodsRes.value) : null;
-        const products = Array.isArray(rawProds) && rawProds.length > 0 ? rawProds : prev.products;
-
         const rawWhs = whsRes.status === 'fulfilled' && whsRes.value ? ((whsRes.value as any).data || (whsRes.value as any).warehouses || whsRes.value) : null;
         const warehouses = Array.isArray(rawWhs) && rawWhs.length > 0 ? rawWhs : prev.warehouses;
 
         const rawLocs = locsRes.status === 'fulfilled' && locsRes.value ? ((locsRes.value as any).data || locsRes.value) : null;
         const locations = Array.isArray(rawLocs) && rawLocs.length > 0 ? rawLocs : prev.locations;
+
+        const rawProds = prodsRes.status === 'fulfilled' && prodsRes.value ? ((prodsRes.value as any).data || prodsRes.value) : null;
+        const baseProducts = Array.isArray(rawProds) && rawProds.length > 0 ? rawProds : prev.products;
+
+        const products = baseProducts.map((p: any) => {
+          const wh = warehouses.find((w: Warehouse) => w.id === (p.warehouseId?._id || p.warehouseId?.toString() || p.warehouseId));
+          const loc = locations.find((l: StorageLocation) => l.id === (p.locationId?._id || p.locationId?.toString() || p.locationId));
+          const whName = p.warehouseName || wh?.shortName || wh?.name || warehouses[0]?.name || 'Main Warehouse';
+          const locName = p.locationName || loc?.name || locations[0]?.name || 'Rack A - Primary';
+          return {
+            ...p,
+            id: p._id || p.id,
+            unit: p.unit || p.unitOfMeasure || 'pcs',
+            unitOfMeasure: p.unitOfMeasure || p.unit || 'pcs',
+            warehouseName: whName,
+            locationName: locName,
+            warehouseId: p.warehouseId || wh?.id || warehouses[0]?.id || 'WH-001',
+            locationId: p.locationId || loc?.id || locations[0]?.id || 'LOC-001',
+          };
+        });
 
         const rawCats = catsRes.status === 'fulfilled' && catsRes.value ? ((catsRes.value as any).data || catsRes.value) : null;
         const categories = Array.isArray(rawCats) && rawCats.length > 0 ? rawCats : prev.categories;

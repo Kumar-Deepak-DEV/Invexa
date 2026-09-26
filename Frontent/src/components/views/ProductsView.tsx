@@ -566,11 +566,11 @@ export const ProductsView: React.FC = () => {
                       <span className="text-xs text-slate-500">{p.unit}</span>
                     </td>
                     <td className="text-xs text-slate-700 font-medium">
-                      {p.warehouseName}
+                      {p.warehouseName || 'Main Warehouse'}
                     </td>
                     <td>
-                      <span className="font-mono text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-700">
-                        {p.locationName}
+                      <span className="font-mono text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-700 border border-slate-200">
+                        {p.locationName || 'Rack A - Primary'}
                       </span>
                     </td>
                     <td>
