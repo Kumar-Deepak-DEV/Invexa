@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Printer,
   ArrowLeft,
+  ArrowRight,
   X,
   Trash2,
 } from 'lucide-react';

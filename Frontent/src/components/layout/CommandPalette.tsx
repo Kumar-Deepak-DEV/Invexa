@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   Sliders,
   PlusCircle,
+  Inbox,
   X
 } from 'lucide-react';
 
@@ -133,6 +134,17 @@ export const CommandPalette: React.FC = () => {
                   <span>Initiate Internal Transfer / Rebalance</span>
                 </div>
                 <span className="text-[10px] text-slate-400">Zero Stock Drift</span>
+              </button>
+
+              <button
+                onClick={() => handleNav('inbox')}
+                className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Inbox className="w-4 h-4 text-amber-600" />
+                  <span>Open Notification Inbox & Alerts</span>
+                </div>
+                <span className="text-[10px] text-slate-400">View All</span>
               </button>
             </div>
           </div>

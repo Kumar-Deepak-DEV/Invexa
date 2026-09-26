@@ -184,14 +184,14 @@ export const CategoriesRulesView: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <Sliders className="w-4 h-4 text-blue-500" />
-            Inventory Governance & Automation
+            <Tag className="w-4 h-4 text-blue-500" />
+            Product Classification & Hierarchy
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-            Categories & Reordering Rules
+            Product Categories
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure product taxonomy hierarchies and automated safety stock procurement thresholds.
+            Manage product taxonomy, classification codes, and catalog organization hierarchies.
           </p>
         </div>
 

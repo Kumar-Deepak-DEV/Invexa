@@ -85,7 +85,8 @@ export const ProfileView: React.FC = () => {
   const [phone, setPhone] = useState(currentUser.phone || '+91 98765 43210');
   const [department, setDepartment] = useState(currentUser.department || 'Warehouse Operations & Logistics');
   const [role, setRole] = useState(currentUser.role || 'Inventory Manager');
-  const [primaryWarehouse, setPrimaryWarehouse] = useState(currentUser.warehouse || warehouses[0]?.name || '');
+  const initialWH = warehouses.find(w => w.name === currentUser.warehouse || currentUser.warehouse?.includes(w.name) || currentUser.warehouse?.includes(w.code))?.name || warehouses[0]?.name || '';
+  const [primaryWarehouse, setPrimaryWarehouse] = useState(initialWH);
   const [bio, setBio] = useState('Senior supply chain specialist managing multi-warehouse replenishment, inventory balancing, and dispatch dock fulfillment.');
   const [timezone, setTimezone] = useState('Asia/Kolkata (IST +5:30)');
 
@@ -425,13 +426,14 @@ export const ProfileView: React.FC = () => {
               <div>
                 <label className="form-label">Full Name *</label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="form-control pl-10 text-xs"
+                    style={{ paddingLeft: '2.5rem' }}
+                    className="form-control text-xs"
                   />
                 </div>
               </div>
@@ -439,13 +441,14 @@ export const ProfileView: React.FC = () => {
               <div>
                 <label className="form-label">Corporate Email *</label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="form-control pl-10 text-xs font-mono"
+                    style={{ paddingLeft: '2.5rem' }}
+                    className="form-control text-xs font-mono"
                   />
                 </div>
               </div>
@@ -453,12 +456,13 @@ export const ProfileView: React.FC = () => {
               <div>
                 <label className="form-label">Phone Number</label>
                 <div className="relative">
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="form-control pl-10 text-xs"
+                    style={{ paddingLeft: '2.5rem' }}
+                    className="form-control text-xs"
                   />
                 </div>
               </div>
@@ -706,14 +710,15 @@ export const ProfileView: React.FC = () => {
               <div>
                 <label className="form-label">Current Password</label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="password"
                     required
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="form-control pl-10 text-xs font-mono"
+                    style={{ paddingLeft: '2.5rem' }}
+                    className="form-control text-xs font-mono"
                   />
                 </div>
               </div>
@@ -722,14 +727,15 @@ export const ProfileView: React.FC = () => {
                 <div>
                   <label className="form-label">New Password</label>
                   <div className="relative">
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="password"
                       required
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Min 8 chars"
-                      className="form-control pl-10 text-xs font-mono"
+                      style={{ paddingLeft: '2.5rem' }}
+                      className="form-control text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -737,14 +743,15 @@ export const ProfileView: React.FC = () => {
                 <div>
                   <label className="form-label">Confirm New Password</label>
                   <div className="relative">
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="password"
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Repeat password"
-                      className="form-control pl-10 text-xs font-mono"
+                      style={{ paddingLeft: '2.5rem' }}
+                      className="form-control text-xs font-mono"
                     />
                   </div>
                 </div>

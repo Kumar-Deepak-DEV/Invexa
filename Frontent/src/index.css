@@ -246,6 +246,16 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+.form-control.pl-10, input.pl-10, .pl-10 {
+  padding-left: 2.5rem !important;
+}
+.form-control.pl-9, input.pl-9, .pl-9 {
+  padding-left: 2.25rem !important;
+}
+.form-control.pl-8, input.pl-8, .pl-8 {
+  padding-left: 2rem !important;
+}
+
 select.form-control, select {
   appearance: none;
   -webkit-appearance: none;

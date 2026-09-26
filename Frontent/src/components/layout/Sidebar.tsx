@@ -2,6 +2,7 @@ import React from 'react';
 import { useStockSense } from '../../context/StockSenseContext';
 import {
   LayoutDashboard,
+  Inbox,
   Package,
   Layers,
   Sliders,
@@ -15,7 +16,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Globe
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -39,14 +41,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const mobileOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
   const setMobileOpen = externalSetMobileOpen || setInternalMobileOpen;
 
-  const { activeView, setActiveView, getKPIs, currentUser, logout } = useStockSense();
+  const { activeView, setActiveView, getKPIs, currentUser, logout, notifications } = useStockSense();
   const kpis = getKPIs();
+  const unreadNotifs = notifications.filter(n => !n.read).length;
 
   const navItems = [
     {
       section: 'Overview',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }
+        { id: 'landing', label: 'Landing Page', icon: Globe },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        {
+          id: 'inbox',
+          label: 'Inbox & Alerts',
+          icon: Inbox,
+          badge: unreadNotifs > 0 ? `${unreadNotifs}` : undefined,
+          badgeColor: 'bg-rose-100 text-rose-700 font-bold'
+        }
       ]
     },
     {
@@ -54,8 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'products', label: 'Products Master', icon: Package, badge: kpis.totalProducts },
         { id: 'stock', label: 'Stock Matrix', icon: Layers },
-        { id: 'categories', label: 'Categories', icon: Tags },
-        { id: 'rules', label: 'Reordering Rules', icon: Sliders }
+        { id: 'categories', label: 'Categories', icon: Tags }
       ]
     },
     {

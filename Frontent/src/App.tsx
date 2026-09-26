@@ -18,6 +18,9 @@ import { HistoryLedgerView } from './components/views/HistoryLedgerView';
 import { CategoriesRulesView } from './components/views/CategoriesRulesView';
 import { ProfileView } from './components/views/ProfileView';
 import { AuthView } from './components/views/AuthView';
+import { LandingView } from './components/views/LandingView';
+import { InboxView } from './components/views/InboxView';
+
 
 const MainLayout: React.FC = () => {
   const { activeView } = useStockSense();
@@ -26,8 +29,12 @@ const MainLayout: React.FC = () => {
 
   const renderActiveView = () => {
     switch (activeView) {
+      case 'landing':
+        return <LandingView />;
       case 'dashboard':
         return <DashboardView />;
+      case 'inbox':
+        return <InboxView />;
       case 'products':
         return <ProductsView />;
       case 'stock':
@@ -56,6 +63,16 @@ const MainLayout: React.FC = () => {
         return <DashboardView />;
     }
   };
+
+  // Standalone Full-Page Views
+  if (activeView === 'landing') {
+    return (
+      <div className="min-h-screen w-full bg-white overflow-x-hidden flex flex-col font-sans">
+        <LandingView />
+        <ToastContainer />
+      </div>
+    );
+  }
 
   // If on Auth view standalone
   if (activeView === 'auth' || activeView === 'login') {

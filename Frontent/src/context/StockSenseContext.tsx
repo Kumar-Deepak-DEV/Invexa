@@ -93,6 +93,11 @@ interface StockSenseContextType {
 
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+  toggleNotificationRead: (id: string) => void;
+  deleteNotification: (id: string) => void;
+  deleteMultipleNotifications: (ids: string[]) => void;
+  clearAllNotifications: () => void;
+  toggleSaveNotification: (id: string) => void;
   login: (identifier: string, password?: string, role?: string) => Promise<{ success: boolean; message?: string }>;
   registerUser: (data: { fullName: string; loginId: string; email: string; password?: string; phone?: string; role?: string }) => Promise<{ success: boolean; message?: string }>;
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -462,7 +467,7 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return DEFAULT_USER;
   });
 
-  const [activeView, setActiveView] = useState<string>('dashboard');
+  const [activeView, setActiveView] = useState<string>('landing');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(null);
@@ -1301,18 +1306,93 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const markNotificationRead = (id: string) => {
-    setData(prev => ({
-      ...prev,
-      notifications: prev.notifications.map((n: NotificationItem) => n.id === id ? { ...n, read: true } : n)
-    }));
+    setData((prev: typeof INITIAL_DATA) => {
+      const updated = {
+        ...prev,
+        notifications: prev.notifications.map((n: NotificationItem) => n.id === id ? { ...n, read: true } : n)
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const toggleNotificationRead = (id: string) => {
+    setData((prev: typeof INITIAL_DATA) => {
+      const updated = {
+        ...prev,
+        notifications: prev.notifications.map((n: NotificationItem) => n.id === id ? { ...n, read: !n.read } : n)
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const markAllNotificationsRead = () => {
-    setData(prev => ({
-      ...prev,
-      notifications: prev.notifications.map((n: NotificationItem) => ({ ...n, read: true }))
-    }));
+    setData((prev: typeof INITIAL_DATA) => {
+      const updated = {
+        ...prev,
+        notifications: prev.notifications.map((n: NotificationItem) => ({ ...n, read: true }))
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
     showToast('All notifications marked as read.', 'info');
+  };
+
+  const deleteNotification = (id: string) => {
+    setData((prev: typeof INITIAL_DATA) => {
+      const updated = {
+        ...prev,
+        notifications: prev.notifications.filter((n: NotificationItem) => n.id !== id)
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    showToast('Notification deleted', 'info');
+  };
+
+  const deleteMultipleNotifications = (ids: string[]) => {
+    const idSet = new Set(ids);
+    setData((prev: typeof INITIAL_DATA) => {
+      const updated = {
+        ...prev,
+        notifications: prev.notifications.filter((n: NotificationItem) => !idSet.has(n.id))
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    showToast(`${ids.length} notifications deleted`, 'info');
+  };
+
+  const clearAllNotifications = () => {
+    setData((prev: typeof INITIAL_DATA) => {
+      const updated = {
+        ...prev,
+        notifications: []
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    showToast('All notifications cleared', 'info');
+  };
+
+  const toggleSaveNotification = (id: string) => {
+    setData((prev: typeof INITIAL_DATA) => {
+      let isSaved = false;
+      const updated = {
+        ...prev,
+        notifications: prev.notifications.map((n: NotificationItem) => {
+          if (n.id === id) {
+            isSaved = !n.saved;
+            return { ...n, saved: isSaved };
+          }
+          return n;
+        })
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      showToast(isSaved ? 'Saved notification to Inbox archive' : 'Removed from saved items', 'info');
+      return updated;
+    });
   };
 
   // Auth: Live Login
@@ -1488,6 +1568,11 @@ export const StockSenseProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addReorderRule,
         markNotificationRead,
         markAllNotificationsRead,
+        toggleNotificationRead,
+        deleteNotification,
+        deleteMultipleNotifications,
+        clearAllNotifications,
+        toggleSaveNotification,
         login,
         registerUser,
         updateUserProfile,

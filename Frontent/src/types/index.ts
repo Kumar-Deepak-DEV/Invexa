@@ -223,6 +223,9 @@ export interface NotificationItem {
   time: string;
   read: boolean;
   link: string;
+  saved?: boolean;
+  category?: string;
+  date?: string;
 }
 
 export interface UserProfile {
